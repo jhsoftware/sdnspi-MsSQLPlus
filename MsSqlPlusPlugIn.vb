@@ -34,15 +34,15 @@ Public Class MsSqlPlusPlugIn
 
 #End Region
 
-  Public Function GetPlugInTypeInfo() As JHSoftware.SimpleDNS.Plugin.IPlugInBase.PlugInTypeInfo Implements JHSoftware.SimpleDNS.Plugin.IPlugInBase.GetPlugInTypeInfo
+  Public Function GetPlugInTypeInfo() As JHSoftware.SimpleDNS.Plugin.IPlugInBase.PlugInTypeInfo Implements JHSoftware.SimpleDNS.Plugin.IPlugInBase.GetTypeInfo
     With GetPlugInTypeInfo
       .Name = "MS SQL Server Plus"
       .Description = "Fetches DNS records from a Microsoft SQL server"
-      .InfoURL = "https://simpledns.plus/kb/182/ms-sql-server-plus-plug-in"
+      .InfoURL = "https://simpledns.plus/plugin-mssqlplus"
     End With
   End Function
 
-  Public Async Function LookupAnswer(ByVal req As IDNSRequest) As Threading.Tasks.Task(Of JHSoftware.SimpleDNS.Plugin.DNSAnswer) Implements JHSoftware.SimpleDNS.Plugin.ILookupAnswer.LookupAnswer
+  Public Async Function LookupAnswer(ByVal req As IRequestContext) As Threading.Tasks.Task(Of JHSoftware.SimpleDNS.Plugin.DNSAnswer) Implements JHSoftware.SimpleDNS.Plugin.ILookupAnswer.LookupAnswer
     Using dbConn = New SqlConnection(dbConnStr)
       Await dbConn.OpenAsync()
 
@@ -89,11 +89,19 @@ Public Class MsSqlPlusPlugIn
         }
 
         If Not HasRecSec Then
-          ans.AddRecord(rec)
+          ans.Answer.Add(rec)
         Else
           sec = CInt(rdr("recsec"))
-          If sec < 1 Or sec > 3 Then Throw New Exception("Invalid answer section returned by SQL server: " & sec)
-          ans.AddRecord(rec, sec)
+          Select Case sec
+            Case 1
+              ans.Answer.Add(rec)
+            Case 2
+              ans.Authority.Add(rec)
+            Case 3
+              ans.Additional.Add(rec)
+            Case Else
+              Throw New Exception("Invalid answer section returned by SQL server: " & sec)
+          End Select
         End If
 
       End While
